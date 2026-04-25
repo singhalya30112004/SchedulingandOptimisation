@@ -1,351 +1,710 @@
-
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hexarise Taaver — CPM Gantt Chart</title>
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:var(--font-sans)}
-#gc-wrap{width:100%;overflow-x:auto;padding:0 0 1rem}
-.gc-header{display:flex;align-items:center;justify-content:space-between;padding:.75rem 0 .5rem;flex-wrap:wrap;gap:8px}
-.gc-title{font-size:15px;font-weight:500;color:var(--color-text-primary)}
-.gc-legend{display:flex;gap:14px;font-size:12px;color:var(--color-text-secondary);flex-wrap:wrap}
-.gc-legend span{display:flex;align-items:center;gap:5px}
-.lbox{width:10px;height:10px;border-radius:2px;flex-shrink:0}
-.gc-controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:.75rem}
-.gc-controls button{font-size:12px;padding:4px 10px;cursor:pointer;border-radius:var(--border-radius-md);border:.5px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-primary)}
-.gc-controls button.active{background:var(--color-background-info);border-color:var(--color-border-info);color:var(--color-text-info)}
-#gc-table{width:100%;border-collapse:collapse;font-size:12px}
-.col-id{width:32px}
-.col-name{width:200px}
-.col-phase{width:110px}
-.col-dur{width:42px;text-align:center}
-.col-cp{width:28px;text-align:center}
-.col-bars{min-width:520px}
-th{font-size:11px;font-weight:500;color:var(--color-text-secondary);text-align:left;padding:5px 6px;border-bottom:.5px solid var(--color-border-tertiary);background:var(--color-background-secondary);white-space:nowrap;position:sticky;top:0;z-index:2}
-th.center{text-align:center}
-td{padding:3px 6px;border-bottom:.5px solid var(--color-border-tertiary);vertical-align:middle;white-space:nowrap;color:var(--color-text-primary)}
-tr:hover td{background:var(--color-background-secondary)}
-tr.phase-sep td{border-top:1.5px solid var(--color-border-secondary)}
-.badge-cp{font-size:10px;color:#a32d2d;font-weight:500}
-.ph-label{font-size:10px;padding:2px 5px;border-radius:3px;display:inline-block}
-.task-name{max-width:190px;overflow:hidden;text-overflow:ellipsis;color:var(--color-text-primary)}
-.dur-cell{font-size:11px;color:var(--color-text-secondary)}
-canvas#ganttCanvas{display:block}
-#tooltip{position:fixed;background:var(--color-background-primary);border:.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:8px 10px;font-size:12px;color:var(--color-text-primary);pointer-events:none;display:none;z-index:99;max-width:240px;line-height:1.6;box-shadow:0 2px 8px rgba(0,0,0,.12)}
-.month-label{font-size:10px;fill:var(--color-text-secondary)}
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,700&family=Playfair+Display:wght@700;800&display=swap');
+
+:root {
+  --bg: #0a0e17;
+  --surface: #111827;
+  --surface2: #1a2236;
+  --border: #1e293b;
+  --text: #e2e8f0;
+  --text-muted: #64748b;
+  --text-dim: #475569;
+  --critical: #ef4444;
+  --critical-glow: rgba(239,68,68,0.25);
+  --noncritical: #22d3ee;
+  --noncritical-dim: rgba(34,211,238,0.15);
+  --gold: #f59e0b;
+  --gold-dim: rgba(245,158,11,0.15);
+  --accent: #8b5cf6;
+  --green: #10b981;
+  --header-h: 48px;
+  --row-h: 32px;
+  --label-w: 320px;
+  --day-w: 3px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', system-ui, sans-serif;
+  overflow: hidden;
+  height: 100vh;
+}
+
+/* ========== TOP BAR ========== */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  gap: 16px;
+  flex-wrap: wrap;
+  z-index: 100;
+  position: relative;
+}
+.topbar-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--gold);
+  white-space: nowrap;
+}
+.topbar-subtitle {
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Stats chips */
+.stats {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 6px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.stat b { color: var(--gold); font-weight: 700; }
+.stat .dot {
+  width: 8px; height: 8px; border-radius: 50%;
+}
+.dot-crit { background: var(--critical); box-shadow: 0 0 6px var(--critical-glow); }
+.dot-nc { background: var(--noncritical); }
+
+/* Filters */
+.filters {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.filter-btn {
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.filter-btn:hover { border-color: var(--gold); color: var(--text); }
+.filter-btn.active { background: var(--gold); color: var(--bg); border-color: var(--gold); font-weight: 700; }
+.filter-btn.crit-filter.active { background: var(--critical); border-color: var(--critical); color: #fff; }
+
+/* ========== MAIN GANTT AREA ========== */
+.gantt-wrapper {
+  display: flex;
+  height: calc(100vh - 100px);
+  overflow: hidden;
+}
+
+/* Left panel - task labels */
+.label-panel {
+  width: var(--label-w);
+  min-width: var(--label-w);
+  overflow-y: auto;
+  overflow-x: hidden;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  scrollbar-width: none;
+}
+.label-panel::-webkit-scrollbar { display: none; }
+
+.label-header {
+  height: var(--header-h);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface2);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  gap: 8px;
+}
+.label-header span:first-child { width: 34px; text-align: center; }
+.label-header span:nth-child(2) { flex: 1; }
+.label-header span:nth-child(3) { width: 36px; text-align: center; }
+.label-header span:nth-child(4) { width: 42px; text-align: center; }
+
+.label-row {
+  height: var(--row-h);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  font-size: 11px;
+  border-bottom: 1px solid rgba(30,41,59,0.5);
+  cursor: pointer;
+  transition: background 0.15s;
+  gap: 8px;
+}
+.label-row:hover { background: var(--surface2); }
+.label-row.critical-row { border-left: 3px solid var(--critical); }
+.label-row.nc-row { border-left: 3px solid transparent; }
+
+.label-row .tid {
+  width: 34px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 10px;
+  color: var(--text-dim);
+}
+.label-row.critical-row .tid { color: var(--critical); }
+
+.label-row .tname {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text);
+}
+.label-row.critical-row .tname { color: #fca5a5; font-weight: 500; }
+
+.label-row .tdur {
+  width: 36px;
+  text-align: center;
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.label-row .tfloat {
+  width: 42px;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 500;
+}
+.label-row.critical-row .tfloat { color: var(--critical); }
+.label-row.nc-row .tfloat { color: var(--noncritical); }
+
+/* Phase group header */
+.phase-group {
+  height: var(--row-h);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--gold);
+  background: var(--gold-dim);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  cursor: pointer;
+}
+
+/* Right panel - bars */
+.chart-panel {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) var(--bg);
+}
+
+.chart-header {
+  height: var(--header-h);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: flex-end;
+}
+
+.month-label {
+  position: absolute;
+  top: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+}
+.day-label {
+  position: absolute;
+  bottom: 4px;
+  font-size: 8px;
+  color: var(--text-dim);
+}
+
+.chart-body {
+  position: relative;
+}
+
+.chart-row {
+  height: var(--row-h);
+  position: relative;
+  border-bottom: 1px solid rgba(30,41,59,0.3);
+}
+.chart-row:hover { background: rgba(30,41,59,0.3); }
+
+/* Bars */
+.bar {
+  position: absolute;
+  top: 6px;
+  height: 20px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: filter 0.15s, transform 0.15s;
+  z-index: 2;
+}
+.bar:hover { filter: brightness(1.3); transform: scaleY(1.15); z-index: 5; }
+
+.bar-critical {
+  background: linear-gradient(135deg, #dc2626, #ef4444);
+  box-shadow: 0 0 8px var(--critical-glow);
+}
+.bar-noncritical {
+  background: linear-gradient(135deg, #0891b2, #22d3ee);
+  opacity: 0.7;
+}
+
+/* Float bar (slack) */
+.bar-float {
+  position: absolute;
+  top: 12px;
+  height: 8px;
+  border-radius: 2px;
+  background: repeating-linear-gradient(90deg, rgba(34,211,238,0.15) 0, rgba(34,211,238,0.15) 4px, transparent 4px, transparent 8px);
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* Grid lines */
+.grid-line {
+  position: absolute;
+  top: 0;
+  width: 1px;
+  height: 100%;
+  background: var(--border);
+  opacity: 0.4;
+  z-index: 0;
+}
+.grid-line.major { opacity: 0.7; }
+
+/* Tooltip */
+.tooltip {
+  position: fixed;
+  z-index: 1000;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 12px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  max-width: 340px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+.tooltip.visible { opacity: 1; }
+.tooltip .tt-title { font-weight: 700; font-size: 13px; margin-bottom: 6px; }
+.tooltip .tt-crit { color: var(--critical); }
+.tooltip .tt-nc { color: var(--noncritical); }
+.tooltip .tt-row { display: flex; justify-content: space-between; gap: 16px; padding: 2px 0; }
+.tooltip .tt-label { color: var(--text-muted); }
+.tooltip .tt-val { font-weight: 500; }
+.tooltip .tt-phase {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 6px;
+}
+
+/* Phase chart header rows */
+.chart-phase-row {
+  height: var(--row-h);
+  background: var(--gold-dim);
+  border-bottom: 1px solid var(--border);
+}
+
+/* Today marker */
+.today-line {
+  position: absolute;
+  top: 0;
+  width: 2px;
+  height: 100%;
+  background: var(--gold);
+  z-index: 3;
+  opacity: 0.6;
+}
+
+/* Search */
+.search-box {
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+  width: 160px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.search-box:focus { border-color: var(--gold); }
+.search-box::placeholder { color: var(--text-dim); }
+
+/* Zoom controls */
+.zoom-controls {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.zoom-btn {
+  width: 28px; height: 28px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+.zoom-btn:hover { background: var(--surface2); border-color: var(--gold); }
+.zoom-level { font-size: 10px; color: var(--text-muted); min-width: 30px; text-align: center; }
 </style>
-<h2 class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)">Gantt chart for BITS Pilani construction project — 109 tasks across 18 months and 522 days</h2>
-<div id="gc-wrap">
-  <div class="gc-header">
-    <div class="gc-title">BITS Pilani — Construction Project Schedule &nbsp;<span style="font-size:12px;color:var(--color-text-secondary);font-weight:400">522 days · 109 tasks · 18 months</span></div>
-    <div class="gc-legend">
-      <span><span class="lbox" style="background:#185FA5"></span>Critical path</span>
-      <span><span class="lbox" style="background:#1D9E75"></span>Non-critical</span>
-      <span><span class="lbox" style="background:#E24B4A"></span>P11 Recreational</span>
-      <span><span class="lbox" style="background:#BA7517"></span>Services</span>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <div class="topbar-title">Hexarise Taaver — Gantt Chart</div>
+    <div class="topbar-subtitle">CPM Schedule · 155 Tasks · 522 Days · 28 Phases</div>
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="dot dot-crit"></div><b>84</b> Critical</div>
+    <div class="stat"><div class="dot dot-nc"></div><b>71</b> Non-Critical</div>
+    <div class="stat"><b>522</b> Days</div>
+    <div class="stat"><b>28</b> Phases</div>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+    <input type="text" class="search-box" id="searchBox" placeholder="Search tasks…">
+    <div class="filters" id="filterBar"></div>
+    <div class="zoom-controls">
+      <button class="zoom-btn" id="zoomOut">−</button>
+      <span class="zoom-level" id="zoomLevel">3px</span>
+      <button class="zoom-btn" id="zoomIn">+</button>
     </div>
   </div>
-  <div class="gc-controls">
-    <button onclick="filterPhase('all')" class="active" id="btn-all">All phases</button>
-    <button onclick="filterPhase('Planning')" id="btn-Planning">Planning</button>
-    <button onclick="filterPhase('Site Work')" id="btn-Site Work">Site work</button>
-    <button onclick="filterPhase('Structural Framing')" id="btn-Structural Framing">Structural</button>
-    <button onclick="filterPhase('Interior Finishing')" id="btn-Interior Finishing">Interiors</button>
-    <button onclick="filterPhase('Electrical')" id="btn-Electrical">Electrical</button>
-    <button onclick="filterPhase('Exterior Finishing')" id="btn-Exterior Finishing">Exterior</button>
-    <button onclick="filterPhase('Final Acceptance')" id="btn-Final Acceptance">Final</button>
-    <button onclick="filterCP()" id="btn-cp">Critical path only</button>
+</div>
+
+<div class="gantt-wrapper">
+  <div class="label-panel" id="labelPanel">
+    <div class="label-header">
+      <span>ID</span><span>Task Name</span><span>Days</span><span>Float</span>
+    </div>
+    <div id="labelBody"></div>
   </div>
-  <div style="overflow-x:auto;width:100%">
-    <table id="gc-table">
-      <colgroup>
-        <col class="col-id"><col class="col-name"><col class="col-phase"><col class="col-dur"><col class="col-cp"><col class="col-bars">
-      </colgroup>
-      <thead>
-        <tr>
-          <th class="col-id">ID</th>
-          <th class="col-name">Task</th>
-          <th class="col-phase">Phase</th>
-          <th class="col-dur center">Days</th>
-          <th class="col-cp center">CP</th>
-          <th class="col-bars" id="bars-header">
-            <canvas id="ganttCanvas" height="22"></canvas>
-          </th>
-        </tr>
-      </thead>
-      <tbody id="gc-body"></tbody>
-    </table>
+  <div class="chart-panel" id="chartPanel">
+    <div class="chart-header" id="chartHeader"></div>
+    <div class="chart-body" id="chartBody"></div>
   </div>
 </div>
-<div id="tooltip"></div>
-<script>
-const TOTAL=522;
-const BAR_H=10, ROW_H=22;
-const phaseColors={
-  'Planning':'#534AB7','Site Work':'#0F6E56','Earthwork':'#0F6E56',
-  'Foundation':'#185FA5','Drainage':'#185FA5',
-  'Structural Framing':'#185FA5','Roofing':'#185FA5','Staircase':'#185FA5',
-  'Doors & Windows':'#BA7517','Plumbing':'#BA7517','HVAC':'#BA7517',
-  'Interior Finishing':'#1D9E75','Electrical':'#993556',
-  'Exterior Finishing':'#639922','Final Acceptance':'#5F5E5A'
-};
-const phaseColorNonCP={
-  'Planning':'#AFA9EC','Site Work':'#5DCAA5','Earthwork':'#5DCAA5',
-  'Foundation':'#85B7EB','Drainage':'#85B7EB',
-  'Structural Framing':'#85B7EB','Roofing':'#85B7EB','Staircase':'#85B7EB',
-  'Doors & Windows':'#EF9F27','Plumbing':'#EF9F27','HVAC':'#EF9F27',
-  'Interior Finishing':'#97C459','Electrical':'#ED93B1',
-  'Exterior Finishing':'#C0DD97','Final Acceptance':'#B4B2A9'
-};
-const P11phases=new Set(['Interior Finishing']);
 
-const tasks=[
-  {id:1,name:'Planning',phase:'Planning',dur:26,es:0,ef:26,cp:true,cost:1945797},
-  {id:2,name:'Approval of drawing from client',phase:'Planning',dur:7,es:26,ef:33,cp:false,cost:523868},
-  {id:3,name:'Estimation of material/labour',phase:'Planning',dur:8,es:26,ef:34,cp:true,cost:598706},
-  {id:4,name:'Taking required permissions',phase:'Planning',dur:3,es:34,ef:37,cp:true,cost:224515},
-  {id:5,name:'Acquiring land',phase:'Planning',dur:4,es:37,ef:41,cp:true,cost:299353},
-  {id:6,name:'Hiring contractors',phase:'Planning',dur:4,es:37,ef:41,cp:true,cost:299353},
-  {id:7,name:'Clear plot',phase:'Site Work',dur:3,es:41,ef:44,cp:true,cost:236152},
-  {id:8,name:'Marking boundaries',phase:'Site Work',dur:3,es:44,ef:47,cp:true,cost:236152},
-  {id:9,name:'Soil Testing',phase:'Site Work',dur:2,es:47,ef:49,cp:true,cost:157435},
-  {id:10,name:'Excavation',phase:'Earthwork',dur:7,es:49,ef:56,cp:true,cost:551023},
-  {id:11,name:'Layout and backfill',phase:'Earthwork',dur:5,es:56,ef:61,cp:true,cost:393587},
-  {id:12,name:'Filling plinth with soil',phase:'Earthwork',dur:4,es:61,ef:65,cp:true,cost:314870},
-  {id:13,name:'Compaction',phase:'Earthwork',dur:8,es:65,ef:73,cp:true,cost:629740},
-  {id:14,name:'Levelling compacted soil',phase:'Foundation',dur:6,es:73,ef:79,cp:true,cost:472305},
-  {id:15,name:'Pile driving operations',phase:'Foundation',dur:10,es:79,ef:89,cp:true,cost:787175},
-  {id:16,name:'Reinforcing installation (pile caps)',phase:'Foundation',dur:5,es:89,ef:94,cp:true,cost:393587},
-  {id:17,name:'Pouring/curing concrete (pile caps)',phase:'Foundation',dur:6,es:94,ef:100,cp:true,cost:472305},
-  {id:18,name:'Foundation inspection',phase:'Foundation',dur:1,es:100,ef:101,cp:true,cost:78717},
-  {id:19,name:'Pipe laying',phase:'Drainage',dur:3,es:101,ef:104,cp:true,cost:236152},
-  {id:20,name:'Bore construction',phase:'Drainage',dur:2,es:101,ef:103,cp:false,cost:157435},
-  {id:21,name:'Concrete curing (drainage)',phase:'Drainage',dur:25,es:104,ef:129,cp:true,cost:1967939},
-  {id:22,name:'Shuttering & Column (GF)',phase:'Structural Framing',dur:3,es:129,ef:132,cp:true,cost:773203},
-  {id:23,name:'Shuttering & Beam (GF)',phase:'Structural Framing',dur:3,es:132,ef:135,cp:true,cost:773203},
-  {id:24,name:'Curing Column (GF)',phase:'Structural Framing',dur:7,es:135,ef:142,cp:true,cost:1804140},
-  {id:25,name:'Curing Beam (GF)',phase:'Structural Framing',dur:7,es:135,ef:142,cp:true,cost:1804140},
-  {id:26,name:'Slab Prep (GF)',phase:'Structural Framing',dur:7,es:142,ef:149,cp:true,cost:1804140},
-  {id:27,name:'Slab Placement (GF)',phase:'Structural Framing',dur:2,es:149,ef:151,cp:true,cost:515468},
-  {id:28,name:'Brick wall & plastering (GF)',phase:'Structural Framing',dur:3,es:151,ef:154,cp:true,cost:561331},
-  {id:29,name:'Curing (GF)',phase:'Structural Framing',dur:7,es:154,ef:161,cp:true,cost:1804140},
-  {id:30,name:'Shuttering & Column (F1)',phase:'Structural Framing',dur:3,es:161,ef:164,cp:true,cost:773203},
-  {id:31,name:'Shuttering & Beam (F1)',phase:'Structural Framing',dur:3,es:164,ef:167,cp:true,cost:773203},
-  {id:32,name:'Curing Column (F1)',phase:'Structural Framing',dur:7,es:167,ef:174,cp:true,cost:1804140},
-  {id:33,name:'Curing Beam (F1)',phase:'Structural Framing',dur:7,es:167,ef:174,cp:true,cost:1804140},
-  {id:34,name:'Slab Prep (F1)',phase:'Structural Framing',dur:7,es:174,ef:181,cp:true,cost:1804140},
-  {id:35,name:'Slab Placement (F1)',phase:'Structural Framing',dur:2,es:181,ef:183,cp:true,cost:515468},
-  {id:36,name:'Brick wall & plastering (F1)',phase:'Structural Framing',dur:3,es:183,ef:186,cp:true,cost:561331},
-  {id:37,name:'Curing (F1)',phase:'Structural Framing',dur:7,es:186,ef:193,cp:true,cost:1804140},
-  {id:38,name:'Shuttering & Column (F2)',phase:'Structural Framing',dur:3,es:193,ef:196,cp:true,cost:773203},
-  {id:39,name:'Shuttering & Beam (F2)',phase:'Structural Framing',dur:3,es:196,ef:199,cp:true,cost:773203},
-  {id:40,name:'Curing Column (F2)',phase:'Structural Framing',dur:7,es:199,ef:206,cp:true,cost:1804140},
-  {id:41,name:'Curing Beam (F2)',phase:'Structural Framing',dur:7,es:199,ef:206,cp:true,cost:1804140},
-  {id:42,name:'Slab Prep (F2)',phase:'Structural Framing',dur:7,es:206,ef:213,cp:true,cost:1804140},
-  {id:43,name:'Slab Placement (F2)',phase:'Structural Framing',dur:2,es:213,ef:215,cp:true,cost:515468},
-  {id:44,name:'Brick wall & plastering (F2)',phase:'Structural Framing',dur:3,es:215,ef:218,cp:true,cost:561331},
-  {id:45,name:'Curing (F2)',phase:'Structural Framing',dur:7,es:218,ef:225,cp:true,cost:1804140},
-  {id:46,name:'Shuttering & Column (F3)',phase:'Structural Framing',dur:3,es:225,ef:228,cp:true,cost:773203},
-  {id:47,name:'Shuttering & Beam (F3)',phase:'Structural Framing',dur:3,es:228,ef:231,cp:true,cost:773203},
-  {id:48,name:'Curing Column (F3)',phase:'Structural Framing',dur:7,es:231,ef:238,cp:true,cost:1804140},
-  {id:49,name:'Curing Beam (F3)',phase:'Structural Framing',dur:7,es:231,ef:238,cp:true,cost:1804140},
-  {id:50,name:'Slab Prep (F3)',phase:'Structural Framing',dur:7,es:238,ef:245,cp:true,cost:1804140},
-  {id:51,name:'Slab Placement (F3)',phase:'Structural Framing',dur:2,es:245,ef:247,cp:true,cost:515468},
-  {id:52,name:'Brick wall & plastering (F3)',phase:'Structural Framing',dur:3,es:247,ef:250,cp:true,cost:561331},
-  {id:53,name:'Curing (F3)',phase:'Structural Framing',dur:7,es:250,ef:257,cp:true,cost:1804140},
-  {id:54,name:'Shuttering & Column (F4)',phase:'Structural Framing',dur:3,es:257,ef:260,cp:true,cost:773203},
-  {id:55,name:'Shuttering & Beam (F4)',phase:'Structural Framing',dur:3,es:260,ef:263,cp:true,cost:773203},
-  {id:56,name:'Curing Column (F4)',phase:'Structural Framing',dur:7,es:263,ef:270,cp:true,cost:1804140},
-  {id:57,name:'Curing Beam (F4)',phase:'Structural Framing',dur:7,es:263,ef:270,cp:true,cost:1804140},
-  {id:58,name:'Slab Prep (F4)',phase:'Structural Framing',dur:7,es:270,ef:277,cp:true,cost:1804140},
-  {id:59,name:'Slab Placement (F4)',phase:'Structural Framing',dur:2,es:277,ef:279,cp:true,cost:515468},
-  {id:60,name:'Brick wall & plastering (F4)',phase:'Structural Framing',dur:3,es:279,ef:282,cp:true,cost:561331},
-  {id:61,name:'Curing (F4)',phase:'Structural Framing',dur:7,es:282,ef:289,cp:true,cost:1804140},
-  {id:62,name:'Shuttering & Column (F5)',phase:'Structural Framing',dur:3,es:289,ef:292,cp:true,cost:773203},
-  {id:63,name:'Shuttering & Beam (F5)',phase:'Structural Framing',dur:3,es:292,ef:295,cp:true,cost:773203},
-  {id:64,name:'Curing Column (F5)',phase:'Structural Framing',dur:7,es:295,ef:302,cp:true,cost:1804140},
-  {id:65,name:'Curing Beam (F5)',phase:'Structural Framing',dur:7,es:295,ef:302,cp:true,cost:1804140},
-  {id:66,name:'Slab Prep (F5)',phase:'Structural Framing',dur:7,es:302,ef:309,cp:true,cost:1804140},
-  {id:67,name:'Slab Placement (F5)',phase:'Structural Framing',dur:2,es:309,ef:311,cp:true,cost:515468},
-  {id:68,name:'Brick wall & plastering (F5)',phase:'Structural Framing',dur:3,es:311,ef:314,cp:true,cost:561331},
-  {id:69,name:'Curing (F5)',phase:'Structural Framing',dur:7,es:314,ef:321,cp:true,cost:1804140},
-  {id:70,name:'Shuttering & Column (F6)',phase:'Structural Framing',dur:3,es:321,ef:324,cp:true,cost:773203},
-  {id:71,name:'Shuttering & Beam (F6)',phase:'Structural Framing',dur:3,es:324,ef:327,cp:true,cost:773203},
-  {id:72,name:'Curing Column (F6)',phase:'Structural Framing',dur:7,es:327,ef:334,cp:true,cost:1804140},
-  {id:73,name:'Curing Beam (F6)',phase:'Structural Framing',dur:7,es:327,ef:334,cp:true,cost:1804140},
-  {id:74,name:'Slab Prep (F6)',phase:'Structural Framing',dur:7,es:334,ef:341,cp:true,cost:1804140},
-  {id:75,name:'Slab Placement (F6)',phase:'Structural Framing',dur:2,es:341,ef:343,cp:true,cost:515468},
-  {id:76,name:'Brick wall & plastering (F6)',phase:'Structural Framing',dur:3,es:343,ef:346,cp:true,cost:561331},
-  {id:77,name:'Curing (F6)',phase:'Structural Framing',dur:7,es:346,ef:353,cp:true,cost:1804140},
-  {id:78,name:'Concrete casting — Terrace',phase:'Roofing',dur:10,es:353,ef:363,cp:false,cost:2577344},
-  {id:79,name:'Roof Waterproofing',phase:'Roofing',dur:8,es:363,ef:371,cp:false,cost:743545},
-  {id:80,name:'Staircase Excavation & Foundation',phase:'Staircase',dur:3,es:129,ef:132,cp:false,cost:773203},
-  {id:81,name:'Pour Staircase Foundation',phase:'Staircase',dur:5,es:132,ef:137,cp:false,cost:1288672},
-  {id:82,name:'Build staircase frame (6 flights)',phase:'Staircase',dur:6,es:353,ef:359,cp:false,cost:1546406},
-  {id:83,name:'Install staircase components',phase:'Staircase',dur:6,es:359,ef:365,cp:false,cost:1552500},
-  {id:84,name:'Install wooden door/window frames',phase:'Doors & Windows',dur:25,es:353,ef:378,cp:true,cost:1531148},
-  {id:85,name:'Installation of doors & windows',phase:'Doors & Windows',dur:15,es:378,ef:393,cp:true,cost:918689},
-  {id:86,name:'Plumbing Layout',phase:'Plumbing',dur:8,es:129,ef:137,cp:false,cost:1183092},
-  {id:87,name:'Complete Floor Plumbing (all 6F)',phase:'Plumbing',dur:14,es:353,ef:367,cp:false,cost:2070412},
-  {id:88,name:'Setting sanitary appliances',phase:'Plumbing',dur:8,es:367,ef:375,cp:false,cost:1183092},
-  {id:89,name:'HVAC layout & measure',phase:'HVAC',dur:3,es:129,ef:132,cp:false,cost:443659},
-  {id:90,name:'HVAC set indoor units',phase:'HVAC',dur:4,es:353,ef:357,cp:false,cost:591546},
-  {id:91,name:'HVAC central plant install',phase:'HVAC',dur:5,es:357,ef:362,cp:false,cost:739433},
-  {id:92,name:'Smoothening cement',phase:'Interior Finishing',dur:18,es:393,ef:411,cp:true,cost:1672978},
-  {id:93,name:'Tiling — Premium 6 floors',phase:'Interior Finishing',dur:35,es:411,ef:446,cp:true,cost:1490985},
-  {id:94,name:'Premium Wall Finishes & Dado',phase:'Interior Finishing',dur:20,es:411,ef:431,cp:false,cost:997995},
-  {id:95,name:'Placing Insulation Walls',phase:'Interior Finishing',dur:18,es:411,ef:429,cp:false,cost:33457731},
-  {id:96,name:'Drywall (Premium acoustic)',phase:'Interior Finishing',dur:8,es:429,ef:437,cp:false,cost:14870103},
-  {id:97,name:'Balcony Railings',phase:'Interior Finishing',dur:2,es:371,ef:373,cp:false,cost:517500},
-  {id:98,name:'Painting and wallpapers',phase:'Interior Finishing',dur:50,es:446,ef:496,cp:true,cost:18861879},
-  {id:99,name:'Internal cleaning',phase:'Interior Finishing',dur:10,es:496,ef:506,cp:true,cost:748383},
-  {id:100,name:'Installation of elevators',phase:'Electrical',dur:50,es:371,ef:421,cp:false,cost:7394331},
-  {id:101,name:'Set electric boxes',phase:'Electrical',dur:4,es:129,ef:133,cp:false,cost:591546},
-  {id:102,name:'Install electric service panel',phase:'Electrical',dur:3,es:133,ef:136,cp:false,cost:443659},
-  {id:103,name:'Electrical rough wire',phase:'Electrical',dur:23,es:353,ef:376,cp:false,cost:3401392},
-  {id:104,name:'Exterior painting & trim',phase:'Exterior Finishing',dur:55,es:371,ef:426,cp:false,cost:377094},
-  {id:105,name:'Landscaping & Hardscaping',phase:'Exterior Finishing',dur:25,es:371,ef:396,cp:false,cost:26352801},
-  {id:106,name:'Exterior cleaning & final touch',phase:'Exterior Finishing',dur:10,es:426,ef:436,cp:false,cost:748383},
-  {id:107,name:'Final inspection (cert of occ.)',phase:'Final Acceptance',dur:4,es:506,ef:510,cp:true,cost:199568},
-  {id:108,name:'Cleanup for occupancy',phase:'Final Acceptance',dur:8,es:510,ef:518,cp:true,cost:399137},
-  {id:109,name:'Final walkthrough inspection',phase:'Final Acceptance',dur:4,es:518,ef:522,cp:true,cost:199568},
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+const TASKS = [{"id": 1, "name": "Planning", "duration": 26, "predecessors": "\u2014", "es": 0, "ef": 26, "ls": 0, "lf": 26, "tf": 0, "ff": 0, "critical": true, "phase": "Planning"}, {"id": 2, "name": "Approval of drawing from client", "duration": 7, "predecessors": "1", "es": 26, "ef": 33, "ls": 27, "lf": 34, "tf": 1, "ff": 1, "critical": false, "phase": "Planning"}, {"id": 3, "name": "Estimation of material/labour cost", "duration": 8, "predecessors": "1", "es": 26, "ef": 34, "ls": 26, "lf": 34, "tf": 0, "ff": 0, "critical": true, "phase": "Planning"}, {"id": 4, "name": "Taking required permissions", "duration": 3, "predecessors": "2, 3", "es": 34, "ef": 37, "ls": 34, "lf": 37, "tf": 0, "ff": 0, "critical": true, "phase": "Planning"}, {"id": 5, "name": "Acquiring land", "duration": 4, "predecessors": "4", "es": 37, "ef": 41, "ls": 37, "lf": 41, "tf": 0, "ff": 0, "critical": true, "phase": "Planning"}, {"id": 6, "name": "Hiring contractors", "duration": 4, "predecessors": "4", "es": 37, "ef": 41, "ls": 37, "lf": 41, "tf": 0, "ff": 0, "critical": true, "phase": "Planning"}, {"id": 7, "name": "Clear plot", "duration": 3, "predecessors": "5, 6", "es": 41, "ef": 44, "ls": 41, "lf": 44, "tf": 0, "ff": 0, "critical": true, "phase": "Site Work"}, {"id": 8, "name": "Marking boundaries of plot", "duration": 3, "predecessors": "7", "es": 44, "ef": 47, "ls": 44, "lf": 47, "tf": 0, "ff": 0, "critical": true, "phase": "Site Work"}, {"id": 9, "name": "Soil Testing", "duration": 2, "predecessors": "8", "es": 47, "ef": 49, "ls": 47, "lf": 49, "tf": 0, "ff": 0, "critical": true, "phase": "Site Work"}, {"id": 10, "name": "Excavation", "duration": 7, "predecessors": "9", "es": 49, "ef": 56, "ls": 49, "lf": 56, "tf": 0, "ff": 0, "critical": true, "phase": "Earthwork"}, {"id": 11, "name": "Layout and backfill", "duration": 5, "predecessors": "10", "es": 56, "ef": 61, "ls": 56, "lf": 61, "tf": 0, "ff": 0, "critical": true, "phase": "Earthwork"}, {"id": 12, "name": "Filling plinth level with soil", "duration": 4, "predecessors": "11", "es": 61, "ef": 65, "ls": 61, "lf": 65, "tf": 0, "ff": 0, "critical": true, "phase": "Earthwork"}, {"id": 13, "name": "Compaction", "duration": 8, "predecessors": "12", "es": 65, "ef": 73, "ls": 65, "lf": 73, "tf": 0, "ff": 0, "critical": true, "phase": "Earthwork"}, {"id": 14, "name": "Levelling compacted soil", "duration": 6, "predecessors": "13", "es": 73, "ef": 79, "ls": 73, "lf": 79, "tf": 0, "ff": 0, "critical": true, "phase": "Foundation"}, {"id": 15, "name": "Pile driving operations", "duration": 10, "predecessors": "14", "es": 79, "ef": 89, "ls": 79, "lf": 89, "tf": 0, "ff": 0, "critical": true, "phase": "Foundation"}, {"id": 16, "name": "Reinforcing installation (pile caps)", "duration": 5, "predecessors": "15", "es": 89, "ef": 94, "ls": 89, "lf": 94, "tf": 0, "ff": 0, "critical": true, "phase": "Foundation"}, {"id": 17, "name": "Pouring and curing of concrete (pile caps)", "duration": 6, "predecessors": "16", "es": 94, "ef": 100, "ls": 94, "lf": 100, "tf": 0, "ff": 0, "critical": true, "phase": "Foundation"}, {"id": 18, "name": "Perform foundation inspection", "duration": 1, "predecessors": "17", "es": 100, "ef": 101, "ls": 100, "lf": 101, "tf": 0, "ff": 0, "critical": true, "phase": "Foundation"}, {"id": 19, "name": "Pipe laying", "duration": 3, "predecessors": "18", "es": 101, "ef": 104, "ls": 101, "lf": 104, "tf": 0, "ff": 0, "critical": true, "phase": "Drainage"}, {"id": 20, "name": "Bore construction", "duration": 2, "predecessors": "18", "es": 101, "ef": 103, "ls": 102, "lf": 104, "tf": 1, "ff": 1, "critical": false, "phase": "Drainage"}, {"id": 21, "name": "Concrete curing (drainage)", "duration": 25, "predecessors": "19, 20", "es": 104, "ef": 129, "ls": 104, "lf": 129, "tf": 0, "ff": 0, "critical": true, "phase": "Drainage"}, {"id": 22, "name": "Shuttering & Elevation of Column (GF)", "duration": 3, "predecessors": "21", "es": 129, "ef": 132, "ls": 129, "lf": 132, "tf": 0, "ff": 0, "critical": true, "phase": "GF"}, {"id": 23, "name": "Shuttering & Preparation of Beam (GF)", "duration": 3, "predecessors": "22", "es": 132, "ef": 135, "ls": 132, "lf": 135, "tf": 0, "ff": 0, "critical": true, "phase": "GF"}, {"id": 24, "name": "Curing and Deshuttering Column (GF)", "duration": 7, "predecessors": "23", "es": 135, "ef": 142, "ls": 135, "lf": 142, "tf": 0, "ff": 0, "critical": true, "phase": "GF"}, {"id": 25, "name": "Curing and Deshuttering Beam (GF)", "duration": 7, "predecessors": "23", "es": 135, "ef": 142, "ls": 135, "lf": 142, "tf": 0, "ff": 0, "critical": true, "phase": "GF"}, {"id": 26, "name": "Slab Preparation (GF)", "duration": 7, "predecessors": "24, 25", "es": 142, "ef": 149, "ls": 142, "lf": 149, "tf": 0, "ff": 0, "critical": true, "phase": "GF"}, {"id": 27, "name": "Slab Placement (GF)", "duration": 2, "predecessors": "26", "es": 149, "ef": 151, "ls": 149, "lf": 151, "tf": 0, "ff": 0, "critical": true, "phase": "GF"}, {"id": 28, "name": "Brick wall & plastering (GF)", "duration": 3, "predecessors": "27", "es": 151, "ef": 154, "ls": 151, "lf": 154, "tf": 0, "ff": 0, "critical": true, "phase": "GF"}, {"id": 29, "name": "Curing (GF)", "duration": 7, "predecessors": "28", "es": 154, "ef": 161, "ls": 154, "lf": 161, "tf": 0, "ff": 0, "critical": true, "phase": "GF"}, {"id": 30, "name": "Shuttering & Elevation of Column (F1)", "duration": 3, "predecessors": "29", "es": 161, "ef": 164, "ls": 161, "lf": 164, "tf": 0, "ff": 0, "critical": true, "phase": "F1"}, {"id": 31, "name": "Shuttering & Preparation of Beam (F1)", "duration": 3, "predecessors": "30", "es": 164, "ef": 167, "ls": 164, "lf": 167, "tf": 0, "ff": 0, "critical": true, "phase": "F1"}, {"id": 32, "name": "Curing and Deshuttering (F1)", "duration": 7, "predecessors": "31", "es": 167, "ef": 174, "ls": 167, "lf": 174, "tf": 0, "ff": 0, "critical": true, "phase": "F1"}, {"id": 33, "name": "Curing and Deshuttering (F1-B)", "duration": 7, "predecessors": "31", "es": 167, "ef": 174, "ls": 167, "lf": 174, "tf": 0, "ff": 0, "critical": true, "phase": "F1"}, {"id": 34, "name": "Slab Preparation (F1)", "duration": 7, "predecessors": "32, 33", "es": 174, "ef": 181, "ls": 174, "lf": 181, "tf": 0, "ff": 0, "critical": true, "phase": "F1"}, {"id": 35, "name": "Slab Placement (F1)", "duration": 2, "predecessors": "34", "es": 181, "ef": 183, "ls": 181, "lf": 183, "tf": 0, "ff": 0, "critical": true, "phase": "F1"}, {"id": 36, "name": "Brick wall & plastering (F1)", "duration": 3, "predecessors": "35", "es": 183, "ef": 186, "ls": 183, "lf": 186, "tf": 0, "ff": 0, "critical": true, "phase": "F1"}, {"id": 37, "name": "Curing (F1)", "duration": 7, "predecessors": "36", "es": 186, "ef": 193, "ls": 186, "lf": 193, "tf": 0, "ff": 0, "critical": true, "phase": "F1"}, {"id": 38, "name": "Shuttering & Elevation of Column (F2)", "duration": 3, "predecessors": "37", "es": 193, "ef": 196, "ls": 193, "lf": 196, "tf": 0, "ff": 0, "critical": true, "phase": "F2"}, {"id": 39, "name": "Shuttering & Preparation of Beam (F2)", "duration": 3, "predecessors": "38", "es": 196, "ef": 199, "ls": 196, "lf": 199, "tf": 0, "ff": 0, "critical": true, "phase": "F2"}, {"id": 40, "name": "Curing and Deshuttering (F2)", "duration": 7, "predecessors": "39", "es": 199, "ef": 206, "ls": 199, "lf": 206, "tf": 0, "ff": 0, "critical": true, "phase": "F2"}, {"id": 41, "name": "Curing and Deshuttering (F2-B)", "duration": 7, "predecessors": "39", "es": 199, "ef": 206, "ls": 199, "lf": 206, "tf": 0, "ff": 0, "critical": true, "phase": "F2"}, {"id": 42, "name": "Slab Preparation (F2)", "duration": 7, "predecessors": "40, 41", "es": 206, "ef": 213, "ls": 206, "lf": 213, "tf": 0, "ff": 0, "critical": true, "phase": "F2"}, {"id": 43, "name": "Slab Placement (F2)", "duration": 2, "predecessors": "42", "es": 213, "ef": 215, "ls": 213, "lf": 215, "tf": 0, "ff": 0, "critical": true, "phase": "F2"}, {"id": 44, "name": "Brick wall & plastering (F2)", "duration": 3, "predecessors": "43", "es": 215, "ef": 218, "ls": 215, "lf": 218, "tf": 0, "ff": 0, "critical": true, "phase": "F2"}, {"id": 45, "name": "Curing (F2)", "duration": 7, "predecessors": "44", "es": 218, "ef": 225, "ls": 218, "lf": 225, "tf": 0, "ff": 0, "critical": true, "phase": "F2"}, {"id": 46, "name": "Shuttering & Elevation of Column (F3)", "duration": 3, "predecessors": "45", "es": 225, "ef": 228, "ls": 225, "lf": 228, "tf": 0, "ff": 0, "critical": true, "phase": "F3"}, {"id": 47, "name": "Shuttering & Preparation of Beam (F3)", "duration": 3, "predecessors": "46", "es": 228, "ef": 231, "ls": 228, "lf": 231, "tf": 0, "ff": 0, "critical": true, "phase": "F3"}, {"id": 48, "name": "Curing and Deshuttering (F3)", "duration": 7, "predecessors": "47", "es": 231, "ef": 238, "ls": 231, "lf": 238, "tf": 0, "ff": 0, "critical": true, "phase": "F3"}, {"id": 49, "name": "Curing and Deshuttering (F3-B)", "duration": 7, "predecessors": "47", "es": 231, "ef": 238, "ls": 231, "lf": 238, "tf": 0, "ff": 0, "critical": true, "phase": "F3"}, {"id": 50, "name": "Slab Preparation (F3)", "duration": 7, "predecessors": "48, 49", "es": 238, "ef": 245, "ls": 238, "lf": 245, "tf": 0, "ff": 0, "critical": true, "phase": "F3"}, {"id": 51, "name": "Slab Placement (F3)", "duration": 2, "predecessors": "50", "es": 245, "ef": 247, "ls": 245, "lf": 247, "tf": 0, "ff": 0, "critical": true, "phase": "F3"}, {"id": 52, "name": "Brick wall & plastering (F3)", "duration": 3, "predecessors": "51", "es": 247, "ef": 250, "ls": 247, "lf": 250, "tf": 0, "ff": 0, "critical": true, "phase": "F3"}, {"id": 53, "name": "Curing (F3)", "duration": 7, "predecessors": "52", "es": 250, "ef": 257, "ls": 250, "lf": 257, "tf": 0, "ff": 0, "critical": true, "phase": "F3"}, {"id": 54, "name": "Shuttering & Elevation of Column (F4)", "duration": 3, "predecessors": "53", "es": 257, "ef": 260, "ls": 257, "lf": 260, "tf": 0, "ff": 0, "critical": true, "phase": "F4"}, {"id": 55, "name": "Shuttering & Preparation of Beam (F4)", "duration": 3, "predecessors": "54", "es": 260, "ef": 263, "ls": 260, "lf": 263, "tf": 0, "ff": 0, "critical": true, "phase": "F4"}, {"id": 56, "name": "Curing and Deshuttering (F4)", "duration": 7, "predecessors": "55", "es": 263, "ef": 270, "ls": 263, "lf": 270, "tf": 0, "ff": 0, "critical": true, "phase": "F4"}, {"id": 57, "name": "Curing and Deshuttering (F4-B)", "duration": 7, "predecessors": "55", "es": 263, "ef": 270, "ls": 263, "lf": 270, "tf": 0, "ff": 0, "critical": true, "phase": "F4"}, {"id": 58, "name": "Slab Preparation (F4)", "duration": 7, "predecessors": "56, 57", "es": 270, "ef": 277, "ls": 270, "lf": 277, "tf": 0, "ff": 0, "critical": true, "phase": "F4"}, {"id": 59, "name": "Slab Placement (F4)", "duration": 2, "predecessors": "58", "es": 277, "ef": 279, "ls": 277, "lf": 279, "tf": 0, "ff": 0, "critical": true, "phase": "F4"}, {"id": 60, "name": "Brick wall & plastering (F4)", "duration": 3, "predecessors": "59", "es": 279, "ef": 282, "ls": 279, "lf": 282, "tf": 0, "ff": 0, "critical": true, "phase": "F4"}, {"id": 61, "name": "Curing (F4)", "duration": 7, "predecessors": "60", "es": 282, "ef": 289, "ls": 282, "lf": 289, "tf": 0, "ff": 0, "critical": true, "phase": "F4"}, {"id": 62, "name": "Shuttering & Elevation of Column (F5)", "duration": 3, "predecessors": "61", "es": 289, "ef": 292, "ls": 289, "lf": 292, "tf": 0, "ff": 0, "critical": true, "phase": "F5"}, {"id": 63, "name": "Shuttering & Preparation of Beam (F5)", "duration": 3, "predecessors": "62", "es": 292, "ef": 295, "ls": 292, "lf": 295, "tf": 0, "ff": 0, "critical": true, "phase": "F5"}, {"id": 64, "name": "Curing and Deshuttering (F5)", "duration": 7, "predecessors": "63", "es": 295, "ef": 302, "ls": 295, "lf": 302, "tf": 0, "ff": 0, "critical": true, "phase": "F5"}, {"id": 65, "name": "Curing and Deshuttering (F5-B)", "duration": 7, "predecessors": "63", "es": 295, "ef": 302, "ls": 295, "lf": 302, "tf": 0, "ff": 0, "critical": true, "phase": "F5"}, {"id": 66, "name": "Slab Preparation (F5)", "duration": 7, "predecessors": "64, 65", "es": 302, "ef": 309, "ls": 302, "lf": 309, "tf": 0, "ff": 0, "critical": true, "phase": "F5"}, {"id": 67, "name": "Slab Placement (F5)", "duration": 2, "predecessors": "66", "es": 309, "ef": 311, "ls": 309, "lf": 311, "tf": 0, "ff": 0, "critical": true, "phase": "F5"}, {"id": 68, "name": "Brick wall & plastering (F5)", "duration": 3, "predecessors": "67", "es": 311, "ef": 314, "ls": 311, "lf": 314, "tf": 0, "ff": 0, "critical": true, "phase": "F5"}, {"id": 69, "name": "Curing (F5)", "duration": 7, "predecessors": "68", "es": 314, "ef": 321, "ls": 314, "lf": 321, "tf": 0, "ff": 0, "critical": true, "phase": "F5"}, {"id": 70, "name": "Shuttering & Elevation of Column (F6)", "duration": 3, "predecessors": "69", "es": 321, "ef": 324, "ls": 321, "lf": 324, "tf": 0, "ff": 0, "critical": true, "phase": "F6"}, {"id": 71, "name": "Shuttering & Preparation of Beam (F6)", "duration": 3, "predecessors": "70", "es": 324, "ef": 327, "ls": 324, "lf": 327, "tf": 0, "ff": 0, "critical": true, "phase": "F6"}, {"id": 72, "name": "Curing and Deshuttering (F6)", "duration": 7, "predecessors": "71", "es": 327, "ef": 334, "ls": 327, "lf": 334, "tf": 0, "ff": 0, "critical": true, "phase": "F6"}, {"id": 73, "name": "Curing and Deshuttering (F6-B)", "duration": 7, "predecessors": "71", "es": 327, "ef": 334, "ls": 327, "lf": 334, "tf": 0, "ff": 0, "critical": true, "phase": "F6"}, {"id": 74, "name": "Slab Preparation (F6)", "duration": 7, "predecessors": "72, 73", "es": 334, "ef": 341, "ls": 334, "lf": 341, "tf": 0, "ff": 0, "critical": true, "phase": "F6"}, {"id": 75, "name": "Slab Placement (F6)", "duration": 2, "predecessors": "74", "es": 341, "ef": 343, "ls": 341, "lf": 343, "tf": 0, "ff": 0, "critical": true, "phase": "F6"}, {"id": 76, "name": "Brick wall & plastering (F6)", "duration": 3, "predecessors": "75", "es": 343, "ef": 346, "ls": 343, "lf": 346, "tf": 0, "ff": 0, "critical": true, "phase": "F6"}, {"id": 77, "name": "Curing (F6)", "duration": 7, "predecessors": "76", "es": 346, "ef": 353, "ls": 346, "lf": 353, "tf": 0, "ff": 0, "critical": true, "phase": "F6"}, {"id": 78, "name": "Concrete casting and curing on Terrace", "duration": 10, "predecessors": "77", "es": 353, "ef": 363, "ls": 375, "lf": 385, "tf": 22, "ff": 0, "critical": false, "phase": "Roofing"}, {"id": 79, "name": "Roof Waterproofing (Premium)", "duration": 8, "predecessors": "78", "es": 363, "ef": 371, "ls": 385, "lf": 393, "tf": 22, "ff": 0, "critical": false, "phase": "Roofing"}, {"id": 80, "name": "Staircase Excavation & Foundation", "duration": 3, "predecessors": "21", "es": 129, "ef": 132, "ls": 373, "lf": 376, "tf": 244, "ff": 0, "critical": false, "phase": "Staircase"}, {"id": 81, "name": "Pour Staircase Foundation", "duration": 5, "predecessors": "80", "es": 132, "ef": 137, "ls": 376, "lf": 381, "tf": 244, "ff": 216, "critical": false, "phase": "Staircase"}, {"id": 82, "name": "Build staircase frame (6 flights)", "duration": 6, "predecessors": "81, 77", "es": 353, "ef": 359, "ls": 381, "lf": 387, "tf": 28, "ff": 0, "critical": false, "phase": "Staircase"}, {"id": 83, "name": "Install staircase components", "duration": 6, "predecessors": "82", "es": 359, "ef": 365, "ls": 387, "lf": 393, "tf": 28, "ff": 28, "critical": false, "phase": "Staircase"}, {"id": 84, "name": "Installing wooden door & window frames", "duration": 25, "predecessors": "77", "es": 353, "ef": 378, "ls": 353, "lf": 378, "tf": 0, "ff": 0, "critical": true, "phase": "Doors & Windows"}, {"id": 85, "name": "Installation of doors and windows", "duration": 15, "predecessors": "84", "es": 378, "ef": 393, "ls": 378, "lf": 393, "tf": 0, "ff": 0, "critical": true, "phase": "Doors & Windows"}, {"id": 86, "name": "Plumbing Layout", "duration": 8, "predecessors": "21", "es": 129, "ef": 137, "ls": 363, "lf": 371, "tf": 234, "ff": 216, "critical": false, "phase": "Plumbing"}, {"id": 87, "name": "Complete Floor Plumbing (All 6 floors)", "duration": 14, "predecessors": "86, 77", "es": 353, "ef": 367, "ls": 371, "lf": 385, "tf": 18, "ff": 0, "critical": false, "phase": "Plumbing"}, {"id": 88, "name": "Setting sanitary appliances", "duration": 8, "predecessors": "87", "es": 367, "ef": 375, "ls": 385, "lf": 393, "tf": 18, "ff": 18, "critical": false, "phase": "Plumbing"}, {"id": 89, "name": "HVAC layout and measure", "duration": 3, "predecessors": "21", "es": 129, "ef": 132, "ls": 381, "lf": 384, "tf": 252, "ff": 221, "critical": false, "phase": "HVAC"}, {"id": 90, "name": "HVAC set indoor units", "duration": 4, "predecessors": "89, 77", "es": 353, "ef": 357, "ls": 384, "lf": 388, "tf": 31, "ff": 0, "critical": false, "phase": "HVAC"}, {"id": 91, "name": "HVAC central plant installation", "duration": 5, "predecessors": "90", "es": 357, "ef": 362, "ls": 388, "lf": 393, "tf": 31, "ff": 31, "critical": false, "phase": "HVAC"}, {"id": 92, "name": "Smoothening cement", "duration": 18, "predecessors": "79, 83, 85, 88, 91", "es": 393, "ef": 411, "ls": 393, "lf": 411, "tf": 0, "ff": 0, "critical": true, "phase": "Interior Finishing"}, {"id": 93, "name": "Tiling (Premium - 6 floors)", "duration": 35, "predecessors": "92", "es": 411, "ef": 446, "ls": 411, "lf": 446, "tf": 0, "ff": 0, "critical": true, "phase": "Interior Finishing"}, {"id": 94, "name": "Premium Wall Finishes & Dado", "duration": 20, "predecessors": "92", "es": 411, "ef": 431, "ls": 426, "lf": 446, "tf": 15, "ff": 15, "critical": false, "phase": "Interior Finishing"}, {"id": 95, "name": "Placing Insulation Walls", "duration": 18, "predecessors": "92", "es": 411, "ef": 429, "ls": 420, "lf": 438, "tf": 9, "ff": 0, "critical": false, "phase": "Interior Finishing"}, {"id": 96, "name": "Drywall (Premium acoustic)", "duration": 8, "predecessors": "95", "es": 429, "ef": 437, "ls": 438, "lf": 446, "tf": 9, "ff": 9, "critical": false, "phase": "Interior Finishing"}, {"id": 97, "name": "Balcony Railings", "duration": 2, "predecessors": "79", "es": 371, "ef": 373, "ls": 444, "lf": 446, "tf": 73, "ff": 73, "critical": false, "phase": "Interior Finishing"}, {"id": 98, "name": "Painting and wallpapers", "duration": 50, "predecessors": "93, 94, 96, 97", "es": 446, "ef": 496, "ls": 446, "lf": 496, "tf": 0, "ff": 0, "critical": true, "phase": "Interior Finishing"}, {"id": 99, "name": "Internal cleaning", "duration": 10, "predecessors": "98", "es": 496, "ef": 506, "ls": 496, "lf": 506, "tf": 0, "ff": 0, "critical": true, "phase": "Interior Finishing"}, {"id": 100, "name": "Installation of elevators", "duration": 50, "predecessors": "79", "es": 371, "ef": 421, "ls": 456, "lf": 506, "tf": 85, "ff": 85, "critical": false, "phase": "Electrical"}, {"id": 101, "name": "Set electric boxes", "duration": 4, "predecessors": "21", "es": 129, "ef": 133, "ls": 476, "lf": 480, "tf": 347, "ff": 0, "critical": false, "phase": "Electrical"}, {"id": 102, "name": "Install electric service panel", "duration": 3, "predecessors": "101", "es": 133, "ef": 136, "ls": 480, "lf": 483, "tf": 347, "ff": 217, "critical": false, "phase": "Electrical"}, {"id": 103, "name": "Electrical rough wire", "duration": 23, "predecessors": "102, 77", "es": 353, "ef": 376, "ls": 483, "lf": 506, "tf": 130, "ff": 130, "critical": false, "phase": "Electrical"}, {"id": 104, "name": "Exterior painting and trim work", "duration": 55, "predecessors": "79", "es": 371, "ef": 426, "ls": 441, "lf": 496, "tf": 70, "ff": 0, "critical": false, "phase": "Exterior Finishing"}, {"id": 105, "name": "Landscaping & Hardscaping", "duration": 25, "predecessors": "79", "es": 371, "ef": 396, "ls": 471, "lf": 496, "tf": 100, "ff": 30, "critical": false, "phase": "Exterior Finishing"}, {"id": 106, "name": "Exterior cleaning & final touch", "duration": 10, "predecessors": "104, 105", "es": 426, "ef": 436, "ls": 496, "lf": 506, "tf": 70, "ff": 70, "critical": false, "phase": "Exterior Finishing"}, {"id": 107, "name": "Complete final inspection (cert of occupancy)", "duration": 4, "predecessors": "99, 100, 103, 106", "es": 506, "ef": 510, "ls": 506, "lf": 510, "tf": 0, "ff": 0, "critical": true, "phase": "Final Acceptance"}, {"id": 108, "name": "Cleanup for occupancy", "duration": 8, "predecessors": "107", "es": 510, "ef": 518, "ls": 510, "lf": 518, "tf": 0, "ff": 0, "critical": true, "phase": "Final Acceptance"}, {"id": 109, "name": "Perform final walkthrough inspection", "duration": 4, "predecessors": "108", "es": 518, "ef": 522, "ls": 518, "lf": 522, "tf": 0, "ff": 0, "critical": true, "phase": "Final Acceptance"}, {"id": 110, "name": "Fire protection plan", "duration": 5, "predecessors": "4", "es": 37, "ef": 42, "ls": 467, "lf": 472, "tf": 430, "ff": 430, "critical": false, "phase": "Fire Protection"}, {"id": 111, "name": "Fire riser mains", "duration": 8, "predecessors": "77", "es": 353, "ef": 361, "ls": 485, "lf": 493, "tf": 132, "ff": 0, "critical": false, "phase": "Fire Protection"}, {"id": 112, "name": "Sprinkler install", "duration": 12, "predecessors": "110, 77", "es": 353, "ef": 365, "ls": 481, "lf": 493, "tf": 128, "ff": 0, "critical": false, "phase": "Fire Protection"}, {"id": 113, "name": "Fire alarm system", "duration": 10, "predecessors": "79", "es": 371, "ef": 381, "ls": 483, "lf": 493, "tf": 112, "ff": 0, "critical": false, "phase": "Fire Protection"}, {"id": 114, "name": "Extinguishers", "duration": 3, "predecessors": "113", "es": 381, "ef": 384, "ls": 493, "lf": 496, "tf": 112, "ff": 0, "critical": false, "phase": "Fire Protection"}, {"id": 115, "name": "Fire commissioning", "duration": 6, "predecessors": "114", "es": 384, "ef": 390, "ls": 496, "lf": 502, "tf": 112, "ff": 112, "critical": false, "phase": "Fire Protection"}, {"id": 116, "name": "BMS design", "duration": 6, "predecessors": "4", "es": 37, "ef": 43, "ls": 466, "lf": 472, "tf": 429, "ff": 429, "critical": false, "phase": "Smart Building"}, {"id": 117, "name": "BMS backbone cable", "duration": 10, "predecessors": "116, 77", "es": 353, "ef": 363, "ls": 472, "lf": 482, "tf": 119, "ff": 0, "critical": false, "phase": "Smart Building"}, {"id": 118, "name": "IoT sensors install", "duration": 8, "predecessors": "111", "es": 361, "ef": 369, "ls": 493, "lf": 501, "tf": 132, "ff": 0, "critical": false, "phase": "Smart Building"}, {"id": 119, "name": "Smart lighting", "duration": 7, "predecessors": "118", "es": 369, "ef": 376, "ls": 501, "lf": 508, "tf": 132, "ff": 132, "critical": false, "phase": "Smart Building"}, {"id": 120, "name": "BMS integration", "duration": 12, "predecessors": "113", "es": 381, "ef": 393, "ls": 484, "lf": 496, "tf": 103, "ff": 103, "critical": false, "phase": "Smart Building"}, {"id": 121, "name": "Intercom/video", "duration": 5, "predecessors": "119", "es": 376, "ef": 381, "ls": 508, "lf": 513, "tf": 132, "ff": 132, "critical": false, "phase": "Smart Building"}, {"id": 122, "name": "Safety plan", "duration": 4, "predecessors": "6", "es": 41, "ef": 45, "ls": 462, "lf": 466, "tf": 421, "ff": 421, "critical": false, "phase": "Safety"}, {"id": 123, "name": "Energy audit", "duration": 9, "predecessors": "132", "es": 381, "ef": 390, "ls": 477, "lf": 486, "tf": 96, "ff": 96, "critical": false, "phase": "Green"}, {"id": 124, "name": "Safety audit", "duration": 5, "predecessors": "122, 107", "es": 510, "ef": 515, "ls": 510, "lf": 515, "tf": 0, "ff": 0, "critical": false, "phase": "Safety"}, {"id": 125, "name": "LEED planning", "duration": 5, "predecessors": "3", "es": 34, "ef": 39, "ls": 463, "lf": 468, "tf": 429, "ff": 429, "critical": false, "phase": "Green"}, {"id": 126, "name": "CCTV cameras", "duration": 5, "predecessors": "117", "es": 363, "ef": 368, "ls": 494, "lf": 499, "tf": 131, "ff": 0, "critical": false, "phase": "Security"}, {"id": 127, "name": "Security test", "duration": 7, "predecessors": "126", "es": 368, "ef": 375, "ls": 499, "lf": 506, "tf": 131, "ff": 0, "critical": false, "phase": "Security"}, {"id": 128, "name": "Security handover", "duration": 5, "predecessors": "149", "es": 400, "ef": 405, "ls": 501, "lf": 506, "tf": 101, "ff": 101, "critical": false, "phase": "Security"}, {"id": 129, "name": "Access control", "duration": 7, "predecessors": "126", "es": 368, "ef": 375, "ls": 494, "lf": 501, "tf": 126, "ff": 126, "critical": false, "phase": "Security"}, {"id": 130, "name": "Solar panel design", "duration": 8, "predecessors": "4", "es": 37, "ef": 45, "ls": 459, "lf": 467, "tf": 422, "ff": 422, "critical": false, "phase": "Green"}, {"id": 131, "name": "Rainwater harvest", "duration": 6, "predecessors": "18", "es": 101, "ef": 107, "ls": 487, "lf": 493, "tf": 386, "ff": 386, "critical": false, "phase": "Green"}, {"id": 132, "name": "Solar install", "duration": 10, "predecessors": "130, 79", "es": 371, "ef": 381, "ls": 467, "lf": 477, "tf": 96, "ff": 0, "critical": false, "phase": "Green"}, {"id": 133, "name": "Green roof layer", "duration": 8, "predecessors": "79", "es": 371, "ef": 379, "ls": 489, "lf": 497, "tf": 118, "ff": 118, "critical": false, "phase": "Green"}, {"id": 134, "name": "EV charging bays", "duration": 6, "predecessors": "18", "es": 101, "ef": 107, "ls": 487, "lf": 493, "tf": 386, "ff": 386, "critical": false, "phase": "Green"}, {"id": 135, "name": "LEED certification", "duration": 18, "predecessors": "125, 98", "es": 496, "ef": 514, "ls": 496, "lf": 514, "tf": 0, "ff": 0, "critical": false, "phase": "Green"}, {"id": 136, "name": "MEP final coordination", "duration": 5, "predecessors": "141", "es": 370, "ef": 375, "ls": 501, "lf": 506, "tf": 131, "ff": 131, "critical": false, "phase": "MEP Coordination"}, {"id": 137, "name": "MEP design review", "duration": 7, "predecessors": "4", "es": 37, "ef": 44, "ls": 466, "lf": 473, "tf": 429, "ff": 429, "critical": false, "phase": "MEP Coordination"}, {"id": 138, "name": "Pipe-elec coordination", "duration": 5, "predecessors": "21", "es": 129, "ef": 134, "ls": 468, "lf": 473, "tf": 339, "ff": 339, "critical": false, "phase": "MEP Coordination"}, {"id": 139, "name": "MEP clash detection", "duration": 4, "predecessors": "138", "es": 134, "ef": 138, "ls": 473, "lf": 477, "tf": 339, "ff": 339, "critical": false, "phase": "MEP Coordination"}, {"id": 140, "name": "MEP mock-up floor", "duration": 8, "predecessors": "139, 77", "es": 353, "ef": 361, "ls": 489, "lf": 497, "tf": 136, "ff": 0, "critical": false, "phase": "MEP Coordination"}, {"id": 141, "name": "MEP final check", "duration": 9, "predecessors": "140", "es": 361, "ef": 370, "ls": 497, "lf": 506, "tf": 136, "ff": 0, "critical": false, "phase": "MEP Coordination"}, {"id": 142, "name": "As-built drawings", "duration": 23, "predecessors": "79", "es": 371, "ef": 394, "ls": 483, "lf": 506, "tf": 112, "ff": 112, "critical": false, "phase": "Landscaping+"}, {"id": 143, "name": "Landscape design", "duration": 8, "predecessors": "7", "es": 41, "ef": 49, "ls": 462, "lf": 470, "tf": 421, "ff": 421, "critical": false, "phase": "Landscaping+"}, {"id": 144, "name": "Lawn & trees", "duration": 14, "predecessors": "132", "es": 381, "ef": 395, "ls": 477, "lf": 491, "tf": 96, "ff": 96, "critical": false, "phase": "Landscaping+"}, {"id": 145, "name": "Boundary wall", "duration": 10, "predecessors": "133", "es": 379, "ef": 389, "ls": 492, "lf": 502, "tf": 113, "ff": 113, "critical": false, "phase": "Landscaping+"}, {"id": 146, "name": "Outdoor lighting", "duration": 7, "predecessors": "120", "es": 393, "ef": 400, "ls": 496, "lf": 503, "tf": 103, "ff": 103, "critical": false, "phase": "Landscaping+"}, {"id": 147, "name": "Guard room", "duration": 6, "predecessors": "121", "es": 381, "ef": 387, "ls": 508, "lf": 514, "tf": 127, "ff": 127, "critical": false, "phase": "Landscaping+"}, {"id": 148, "name": "Gate barrier", "duration": 3, "predecessors": "145", "es": 389, "ef": 392, "ls": 502, "lf": 505, "tf": 113, "ff": 113, "critical": false, "phase": "Landscaping+"}, {"id": 149, "name": "Security commission", "duration": 25, "predecessors": "127", "es": 375, "ef": 400, "ls": 481, "lf": 506, "tf": 106, "ff": 0, "critical": false, "phase": "Security"}, {"id": 150, "name": "Parking design", "duration": 5, "predecessors": "7", "es": 41, "ef": 46, "ls": 465, "lf": 470, "tf": 424, "ff": 424, "critical": false, "phase": "Landscaping+"}, {"id": 151, "name": "CCTV backbone", "duration": 8, "predecessors": "77", "es": 353, "ef": 361, "ls": 486, "lf": 494, "tf": 133, "ff": 0, "critical": false, "phase": "Security"}, {"id": 152, "name": "Site handover", "duration": 1, "predecessors": "149", "es": 400, "ef": 401, "ls": 505, "lf": 506, "tf": 105, "ff": 105, "critical": false, "phase": "Security"}, {"id": 153, "name": "BMS commissioning", "duration": 6, "predecessors": "120", "es": 393, "ef": 399, "ls": 496, "lf": 502, "tf": 103, "ff": 103, "critical": false, "phase": "Smart Building"}, {"id": 154, "name": "Perimeter fencing", "duration": 8, "predecessors": "8", "es": 44, "ef": 52, "ls": 462, "lf": 470, "tf": 418, "ff": 418, "critical": false, "phase": "Security"}, {"id": 155, "name": "Security handover final", "duration": 5, "predecessors": "152", "es": 401, "ef": 406, "ls": 506, "lf": 511, "tf": 105, "ff": 105, "critical": false, "phase": "Security"}];
+
+// ===== CONFIG =====
+let DAY_W = 3;
+const ROW_H = 32;
+const HEADER_H = 48;
+const TOTAL_DAYS = 522;
+
+// Phase ordering
+const PHASE_ORDER = [
+  'Planning','Site Work','Earthwork','Foundation','Drainage',
+  'GF','F1','F2','F3','F4','F5','F6',
+  'Roofing','Staircase','Doors & Windows','Plumbing','HVAC',
+  'Interior Finishing','Electrical','Exterior Finishing','Final Acceptance',
+  'Fire Protection','Smart Building','Safety','Green',
+  'MEP Coordination','Landscaping+','Security'
 ];
 
-const phaseOrder=['Planning','Site Work','Earthwork','Foundation','Drainage','Structural Framing','Roofing','Staircase','Doors & Windows','Plumbing','HVAC','Interior Finishing','Electrical','Exterior Finishing','Final Acceptance'];
-const phaseLabel={'Planning':'#EEEDFE','Site Work':'#E1F5EE','Earthwork':'#E1F5EE','Foundation':'#E6F1FB','Drainage':'#E6F1FB','Structural Framing':'#E6F1FB','Roofing':'#E6F1FB','Staircase':'#E6F1FB','Doors & Windows':'#FAEEDA','Plumbing':'#FAEEDA','HVAC':'#FAEEDA','Interior Finishing':'#EAF3DE','Electrical':'#FBEAF0','Exterior Finishing':'#EAF3DE','Final Acceptance':'#F1EFE8'};
-const phaseLabelText={'Planning':'#3C3489','Site Work':'#085041','Earthwork':'#085041','Foundation':'#0C447C','Drainage':'#0C447C','Structural Framing':'#0C447C','Roofing':'#0C447C','Staircase':'#0C447C','Doors & Windows':'#633806','Plumbing':'#633806','HVAC':'#633806','Interior Finishing':'#27500A','Electrical':'#72243E','Exterior Finishing':'#27500A','Final Acceptance':'#444441'};
+const PHASE_COLORS = {
+  'Planning':'#f59e0b','Site Work':'#f97316','Earthwork':'#a16207',
+  'Foundation':'#78716c','Drainage':'#0ea5e9','GF':'#6366f1','F1':'#7c3aed',
+  'F2':'#8b5cf6','F3':'#a78bfa','F4':'#c084fc','F5':'#d8b4fe','F6':'#e9d5ff',
+  'Roofing':'#ec4899','Staircase':'#f43f5e','Doors & Windows':'#14b8a6',
+  'Plumbing':'#06b6d4','HVAC':'#22d3ee','Interior Finishing':'#f59e0b',
+  'Electrical':'#eab308','Exterior Finishing':'#84cc16',
+  'Final Acceptance':'#10b981',
+  'Fire Protection':'#ef4444','Smart Building':'#3b82f6',
+  'Safety':'#fbbf24','Green':'#22c55e',
+  'MEP Coordination':'#06b6d4','Landscaping+':'#34d399','Security':'#f97316'
+};
 
-let currentFilter='all';
-let cpOnly=false;
+// ===== STATE =====
+let activeFilter = 'all';
+let critOnly = false;
+let searchTerm = '';
 
-function getBarColor(t){
-  if(t.phase==='Interior Finishing'&&(t.id===95||t.id===96)) return t.cp?'#185FA5':'#E24B4A';
-  if(t.phase==='Exterior Finishing'&&t.id===105) return '#1D9E75';
-  return t.cp ? (phaseColors[t.phase]||'#185FA5') : (phaseColorNonCP[t.phase]||'#1D9E75');
-}
-
-function getVisibleTasks(){
-  return tasks.filter(t=>{
-    if(cpOnly&&!t.cp) return false;
-    if(currentFilter==='all') return true;
-    return t.phase===currentFilter;
+// ===== GROUP TASKS BY PHASE =====
+function getGroupedTasks() {
+  let filtered = TASKS.filter(t => {
+    if (critOnly && !t.critical) return false;
+    if (activeFilter !== 'all' && t.phase !== activeFilter) return false;
+    if (searchTerm && !t.name.toLowerCase().includes(searchTerm) && !String(t.id).includes(searchTerm)) return false;
+    return true;
   });
-}
 
-function formatCost(c){return '₹'+c.toLocaleString('en-IN')}
+  // Group by phase
+  const groups = {};
+  for (const t of filtered) {
+    if (!groups[t.phase]) groups[t.phase] = [];
+    groups[t.phase].push(t);
+  }
 
-function drawHeader(barsW){
-  const canvas=document.getElementById('ganttCanvas');
-  canvas.width=barsW; canvas.height=22;
-  const ctx=canvas.getContext('2d');
-  ctx.clearRect(0,0,barsW,22);
-  const months=18;
-  const isDark=window.matchMedia('(prefers-color-scheme:dark)').matches;
-  const textColor=isDark?'#888780':'#888780';
-  const lineColor=isDark?'rgba(180,178,169,.2)':'rgba(136,135,128,.2)';
-  for(let m=0;m<=months;m++){
-    const x=Math.round((m/months)*barsW*(TOTAL/TOTAL));
-    const xp=Math.round((m*TOTAL/months)/TOTAL*barsW);
-    ctx.beginPath();ctx.strokeStyle=lineColor;ctx.lineWidth=.5;
-    ctx.moveTo(xp,0);ctx.lineTo(xp,22);ctx.stroke();
-    if(m<months){
-      ctx.fillStyle=textColor;ctx.font='10px var(--font-sans,sans-serif)';
-      ctx.fillText('M'+(m+1),xp+3,14);
+  // Order by PHASE_ORDER
+  const ordered = [];
+  for (const ph of PHASE_ORDER) {
+    if (groups[ph]) {
+      ordered.push({ phase: ph, tasks: groups[ph].sort((a,b) => a.es - b.es || a.id - b.id) });
     }
   }
+  return ordered;
 }
 
-function renderBarsCell(t,barsW){
-  const canvas=document.createElement('canvas');
-  canvas.width=barsW; canvas.height=ROW_H;
-  canvas.style.display='block';
-  const ctx=canvas.getContext('2d');
-  ctx.clearRect(0,0,barsW,ROW_H);
-  const isDark=window.matchMedia('(prefers-color-scheme:dark)').matches;
-  const gridColor=isDark?'rgba(180,178,169,.12)':'rgba(136,135,128,.12)';
-  for(let m=0;m<=18;m++){
-    const xp=Math.round((m*TOTAL/18)/TOTAL*barsW);
-    ctx.beginPath();ctx.strokeStyle=gridColor;ctx.lineWidth=.5;
-    ctx.moveTo(xp,0);ctx.lineTo(xp,ROW_H);ctx.stroke();
+// ===== RENDER =====
+function render() {
+  const groups = getGroupedTasks();
+  const labelBody = document.getElementById('labelBody');
+  const chartBody = document.getElementById('chartBody');
+  const chartHeader = document.getElementById('chartHeader');
+
+  // Clear
+  labelBody.innerHTML = '';
+  chartBody.innerHTML = '';
+  chartHeader.innerHTML = '';
+
+  const chartW = TOTAL_DAYS * DAY_W;
+
+  // Render header timeline
+  chartHeader.style.width = chartW + 'px';
+  chartHeader.style.position = 'sticky';
+  chartHeader.style.top = '0';
+
+  // Month markers (30-day months)
+  for (let m = 0; m <= 18; m++) {
+    const day = m * 30;
+    if (day > TOTAL_DAYS) break;
+    const ml = document.createElement('span');
+    ml.className = 'month-label';
+    ml.style.left = (day * DAY_W) + 'px';
+    ml.textContent = 'M' + m;
+    chartHeader.appendChild(ml);
   }
-  const x=Math.round(t.es/TOTAL*barsW);
-  const w=Math.max(2,Math.round(t.dur/TOTAL*barsW));
-  const y=Math.round((ROW_H-BAR_H)/2);
-  ctx.fillStyle=getBarColor(t);
-  ctx.beginPath();
-  const r=2;
-  ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.arcTo(x+w,y,x+w,y+r,r);
-  ctx.lineTo(x+w,y+BAR_H-r);ctx.arcTo(x+w,y+BAR_H,x+w-r,y+BAR_H,r);
-  ctx.lineTo(x+r,y+BAR_H);ctx.arcTo(x,y+BAR_H,x,y+BAR_H-r,r);
-  ctx.lineTo(x,y+r);ctx.arcTo(x,y,x+r,y,r);
-  ctx.closePath();ctx.fill();
-  if(t.cp){
-    ctx.strokeStyle='rgba(255,255,255,.4)';ctx.lineWidth=1;
-    ctx.beginPath();ctx.moveTo(x+2,y+2);ctx.lineTo(x+w-2,y+2);ctx.stroke();
+
+  // Day markers every 50 days
+  for (let d = 0; d <= TOTAL_DAYS; d += 50) {
+    const dl = document.createElement('span');
+    dl.className = 'day-label';
+    dl.style.left = (d * DAY_W) + 'px';
+    dl.textContent = d;
+    chartHeader.appendChild(dl);
   }
-  canvas.addEventListener('mousemove',e=>{
-    const tt=document.getElementById('tooltip');
-    tt.style.display='block';
-    tt.style.left=(e.clientX+12)+'px';
-    tt.style.top=(e.clientY-10)+'px';
-    tt.innerHTML=`<strong>Task ${t.id}: ${t.name}</strong><br>Phase: ${t.phase}<br>Duration: ${t.dur} days (Day ${t.es}–${t.ef})<br>Critical path: ${t.cp?'Yes':'No'}<br>Cost: ${formatCost(t.cost)}`;
-  });
-  canvas.addEventListener('mouseleave',()=>{document.getElementById('tooltip').style.display='none'});
-  return canvas;
+
+  // Build rows
+  let rowIndex = 0;
+  for (const grp of groups) {
+    // Phase header
+    const phLabel = document.createElement('div');
+    phLabel.className = 'phase-group';
+    phLabel.textContent = grp.phase + ' (' + grp.tasks.length + ')';
+    labelBody.appendChild(phLabel);
+
+    const phChart = document.createElement('div');
+    phChart.className = 'chart-phase-row';
+    phChart.style.width = chartW + 'px';
+    chartBody.appendChild(phChart);
+
+    // Tasks
+    for (const t of grp.tasks) {
+      // Label row
+      const lr = document.createElement('div');
+      lr.className = 'label-row ' + (t.critical ? 'critical-row' : 'nc-row');
+      lr.innerHTML = `
+        <span class="tid">${t.id}</span>
+        <span class="tname" title="${t.name}">${t.name}</span>
+        <span class="tdur">${t.duration}d</span>
+        <span class="tfloat">${t.tf}</span>
+      `;
+      labelBody.appendChild(lr);
+
+      // Chart row
+      const cr = document.createElement('div');
+      cr.className = 'chart-row';
+      cr.style.width = chartW + 'px';
+
+      // Main bar
+      const bar = document.createElement('div');
+      bar.className = 'bar ' + (t.critical ? 'bar-critical' : 'bar-noncritical');
+      bar.style.left = (t.es * DAY_W) + 'px';
+      bar.style.width = Math.max(t.duration * DAY_W, 2) + 'px';
+
+      // Tooltip
+      bar.addEventListener('mouseenter', (e) => showTooltip(e, t));
+      bar.addEventListener('mousemove', (e) => moveTooltip(e));
+      bar.addEventListener('mouseleave', hideTooltip);
+      lr.addEventListener('mouseenter', (e) => { showTooltip(e, t); lr.style.background = 'var(--surface2)'; });
+      lr.addEventListener('mouseleave', (e) => { hideTooltip(); lr.style.background = ''; });
+
+      cr.appendChild(bar);
+
+      // Float bar
+      if (t.tf > 0) {
+        const fb = document.createElement('div');
+        fb.className = 'bar-float';
+        fb.style.left = (t.ef * DAY_W) + 'px';
+        fb.style.width = (t.tf * DAY_W) + 'px';
+        cr.appendChild(fb);
+      }
+
+      chartBody.appendChild(cr);
+      rowIndex++;
+    }
+  }
+
+  // Grid lines every 50 days
+  for (let d = 0; d <= TOTAL_DAYS; d += 50) {
+    const gl = document.createElement('div');
+    gl.className = 'grid-line' + (d % 100 === 0 ? ' major' : '');
+    gl.style.left = (d * DAY_W) + 'px';
+    gl.style.height = chartBody.scrollHeight + 'px';
+    chartBody.appendChild(gl);
+  }
 }
 
-function render(){
-  const visible=getVisibleTasks();
-  const tbody=document.getElementById('gc-body');
-  tbody.innerHTML='';
-  const barsW=Math.max(400, document.getElementById('bars-header').offsetWidth||520);
-  drawHeader(barsW);
-  let lastPhase='';
-  visible.forEach(t=>{
-    const tr=document.createElement('tr');
-    if(t.phase!==lastPhase&&lastPhase!=='') tr.classList.add('phase-sep');
-    lastPhase=t.phase;
-    const tdId=document.createElement('td');
-    tdId.textContent=t.id;
-    tdId.style.fontSize='11px';tdId.style.color='var(--color-text-secondary)';
-    const tdName=document.createElement('td');
-    const nameDiv=document.createElement('div');
-    nameDiv.className='task-name';nameDiv.title=t.name;nameDiv.textContent=t.name;
-    tdName.appendChild(nameDiv);
-    const tdPhase=document.createElement('td');
-    const badge=document.createElement('span');
-    badge.className='ph-label';
-    badge.style.background=phaseLabel[t.phase]||'#F1EFE8';
-    badge.style.color=phaseLabelText[t.phase]||'#444441';
-    badge.textContent=t.phase;
-    tdPhase.appendChild(badge);
-    const tdDur=document.createElement('td');
-    tdDur.className='dur-cell';tdDur.style.textAlign='center';tdDur.textContent=t.dur;
-    const tdCp=document.createElement('td');
-    tdCp.style.textAlign='center';
-    if(t.cp){const s=document.createElement('span');s.className='badge-cp';s.textContent='★';tdCp.appendChild(s);}
-    const tdBars=document.createElement('td');
-    tdBars.appendChild(renderBarsCell(t,barsW));
-    tr.append(tdId,tdName,tdPhase,tdDur,tdCp,tdBars);
-    tbody.appendChild(tr);
-  });
+// ===== TOOLTIP =====
+const tooltip = document.getElementById('tooltip');
+
+function showTooltip(e, t) {
+  const phColor = PHASE_COLORS[t.phase] || '#64748b';
+  tooltip.innerHTML = `
+    <div class="tt-title ${t.critical ? 'tt-crit' : 'tt-nc'}">#${t.id} — ${t.name}</div>
+    <div class="tt-row"><span class="tt-label">Duration</span><span class="tt-val">${t.duration} days</span></div>
+    <div class="tt-row"><span class="tt-label">Early Start → Finish</span><span class="tt-val">Day ${t.es} → ${t.ef}</span></div>
+    <div class="tt-row"><span class="tt-label">Late Start → Finish</span><span class="tt-val">Day ${t.ls} → ${t.lf}</span></div>
+    <div class="tt-row"><span class="tt-label">Total Float</span><span class="tt-val" style="color:${t.tf === 0 ? 'var(--critical)' : 'var(--noncritical)'}">${t.tf} days</span></div>
+    <div class="tt-row"><span class="tt-label">Free Float</span><span class="tt-val">${t.ff} days</span></div>
+    <div class="tt-row"><span class="tt-label">Predecessors</span><span class="tt-val">${t.predecessors}</span></div>
+    <div class="tt-row"><span class="tt-label">Critical?</span><span class="tt-val" style="color:${t.critical ? 'var(--critical)' : 'var(--noncritical)'}">${t.critical ? '★ YES' : 'No'}</span></div>
+    <span class="tt-phase" style="background:${phColor}22;color:${phColor};border:1px solid ${phColor}44">${t.phase}</span>
+  `;
+  tooltip.classList.add('visible');
+  moveTooltip(e);
+}
+function moveTooltip(e) {
+  let x = e.clientX + 16, y = e.clientY + 12;
+  if (x + 350 > window.innerWidth) x = e.clientX - 360;
+  if (y + 250 > window.innerHeight) y = e.clientY - 250;
+  tooltip.style.left = x + 'px';
+  tooltip.style.top = y + 'px';
+}
+function hideTooltip() { tooltip.classList.remove('visible'); }
+
+// ===== SYNC SCROLL =====
+const labelPanel = document.getElementById('labelPanel');
+const chartPanel = document.getElementById('chartPanel');
+chartPanel.addEventListener('scroll', () => { labelPanel.scrollTop = chartPanel.scrollTop; });
+labelPanel.addEventListener('scroll', () => { chartPanel.scrollTop = labelPanel.scrollTop; });
+
+// ===== FILTERS =====
+function buildFilters() {
+  const bar = document.getElementById('filterBar');
+  bar.innerHTML = '';
+
+  // Critical only toggle
+  const critBtn = document.createElement('button');
+  critBtn.className = 'filter-btn crit-filter' + (critOnly ? ' active' : '');
+  critBtn.textContent = '★ Critical';
+  critBtn.onclick = () => { critOnly = !critOnly; buildFilters(); render(); };
+  bar.appendChild(critBtn);
+
+  // All
+  const allBtn = document.createElement('button');
+  allBtn.className = 'filter-btn' + (activeFilter === 'all' ? ' active' : '');
+  allBtn.textContent = 'All';
+  allBtn.onclick = () => { activeFilter = 'all'; buildFilters(); render(); };
+  bar.appendChild(allBtn);
+
+  // Phase buttons - only show main groups to avoid clutter
+  const mainPhases = ['Planning','Site Work','Earthwork','Foundation','Drainage',
+    'GF','F1','F2','F3','F4','F5','F6','Roofing','Staircase','Doors & Windows',
+    'Plumbing','HVAC','Interior Finishing','Electrical','Exterior Finishing','Final Acceptance',
+    'Fire Protection','Smart Building','Safety','Green','MEP Coordination','Landscaping+','Security'];
+
+  for (const ph of mainPhases) {
+    const btn = document.createElement('button');
+    btn.className = 'filter-btn' + (activeFilter === ph ? ' active' : '');
+    btn.textContent = ph;
+    btn.style.borderColor = PHASE_COLORS[ph] || 'var(--border)';
+    if (activeFilter === ph) btn.style.background = PHASE_COLORS[ph];
+    btn.onclick = () => { activeFilter = ph; buildFilters(); render(); };
+    bar.appendChild(btn);
+  }
 }
 
-function filterPhase(ph){
-  cpOnly=false;
-  currentFilter=ph;
-  document.querySelectorAll('.gc-controls button').forEach(b=>b.classList.remove('active'));
-  const btn=document.getElementById('btn-'+(ph==='all'?'all':ph));
-  if(btn) btn.classList.add('active');
+// ===== SEARCH =====
+document.getElementById('searchBox').addEventListener('input', (e) => {
+  searchTerm = e.target.value.toLowerCase();
   render();
-}
+});
 
-function filterCP(){
-  cpOnly=!cpOnly;
-  currentFilter='all';
-  document.querySelectorAll('.gc-controls button').forEach(b=>b.classList.remove('active'));
-  if(cpOnly) document.getElementById('btn-cp').classList.add('active');
-  else document.getElementById('btn-all').classList.add('active');
+// ===== ZOOM =====
+document.getElementById('zoomIn').addEventListener('click', () => {
+  DAY_W = Math.min(DAY_W + 1, 12);
+  document.getElementById('zoomLevel').textContent = DAY_W + 'px';
   render();
-}
+});
+document.getElementById('zoomOut').addEventListener('click', () => {
+  DAY_W = Math.max(DAY_W - 1, 1);
+  document.getElementById('zoomLevel').textContent = DAY_W + 'px';
+  render();
+});
 
-window.addEventListener('resize',render);
+// ===== INIT =====
+buildFilters();
 render();
 </script>
+</body>
+</html>
